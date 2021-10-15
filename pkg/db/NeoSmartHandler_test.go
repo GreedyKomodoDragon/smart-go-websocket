@@ -385,6 +385,43 @@ var _ = Describe("SmartDB", func() {
 		Expect(err).NotTo(BeNil(), "Should not be able to buy listing")
 	})
 
+	It("Brought Item: Cannot buy something that has already been brought", func() {
+
+		session := driver.NewSession(neo4j.SessionConfig{})
+		smartDB = NeoSmartHandler{
+			Session: session,
+		}
+
+		defer mocks.Close(session, "Session")
+
+		username := "some"
+		email := "some@example.com"
+
+		initialPassword := "some-password"
+
+		err := registerUser(smartDB, &username, &email, &initialPassword)
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		listing := Listing{
+			Title:      "Example Listing",
+			Decription: "This is a description of a listing",
+			Images:     []string{"http://img.server.com/12", "http://img.server.com/13", "http://img.server.com/12"},
+			Price:      12,
+			Sym:        "ETH",
+		}
+
+		id, err := smartDB.UploadListing(&username, &listing)
+		Expect(err).To(BeNil(), "Should be able to upload listing")
+
+		amount := 50
+		err = smartDB.BuyListing(&username, &id, &amount)
+
+		Expect(err).NotTo(BeNil(), "Should not be able to buy listing")
+	})
+
 })
 
 func registerUser(db ISmartDBWriter, username, email, intialPassword *string) error {
