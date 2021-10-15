@@ -1,10 +1,12 @@
 package db
 
 type Listing struct {
-	Id         string
+	Id         int64
 	Title      string
 	Decription string
 	Images     []string
-	Price      int    // if token is decimal it will be moved up to be an integer
+	Price      int64  // if token is decimal it will be moved up to be an integer
 	Sym        string // which token is being used
+	Active     bool
+	Owner      string
 }

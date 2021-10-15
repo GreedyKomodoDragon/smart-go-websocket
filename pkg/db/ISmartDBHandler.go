@@ -1,19 +1,18 @@
 package db
 
 type ISmartDBReader interface {
-	getMessages(recieverID, sendID, lastUnreadMessageID *string) (string, error)
-	getListing(listingID *string) (string, error)
-	getProfile(profileID *string) (string, error)
-	getUnreadNotifications(profileID *string) (string, error)
-	checkLogin()
+	GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *uint) ([]Messages, error)
+	GetListing(listingID *int64) (Listing, error)
+	//GetProfile(profileUsername *string) (string, error)
+	//GetUnreadNotifications(profileID *string) (string, error)
 }
 
 type ISmartDBWriter interface {
 
 	// Writer Methods
-	CreateMessage(senderID, recieverID, message *string) error
-	UploadListing(username *string, listing *Listing) error
-	BuyListing(buyerID, listingID *string, amount *int) error
+	CreateMessage(senderUsername, receiverUsername, message *string) error
+	UploadListing(username *string, listing *Listing) (int64, error)
+	BuyListing(buyerID *string, listingID *int64, amount *int) error
 	CreateProfile(username, email, password *string) error
 }
 

@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	cryptograph "go-websocket/pkg/Cryptograph"
+	"strings"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
@@ -103,19 +104,18 @@ func (db NeoSmartHandler) CreateProfile(username, email, password *string) error
 	return err
 }
 
-func (db NeoSmartHandler) CreateMessage(senderID, receiverID, message *string) error {
+func (db NeoSmartHandler) CreateMessage(senderUsername, receiverUsername, message *string) error {
 
 	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		result, err := transaction.Run(
 			`
-			MATCH (sender: Person), (reciever: Person)
-			WHERE sender.id = $senderID and receiver.id = $receiverID
-			CREATE (sender)-[r:message {message: $message, time: $currentTime, timeOfRead: 0}]->(receiver)
+			MATCH (sender: Person {username: $usernameOne}), (reciever: Person {username: $usernameTwo})
+			CREATE (sender)-[r:message {message: $message, time: $currentTime, timeOfRead: 0}]->(reciever)
 			`,
 			map[string]interface{}{
 				"message":     *message,
-				"senderID":    *senderID,
-				"receiverID":  *receiverID,
+				"usernameOne": *senderUsername,
+				"usernameTwo": *receiverUsername,
 				"currentTime": time.Now().Unix(),
 			})
 
@@ -133,9 +133,9 @@ func (db NeoSmartHandler) CreateMessage(senderID, receiverID, message *string) e
 	return err
 }
 
-func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) error {
+func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) (int64, error) {
 
-	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+	value, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		result, err := transaction.Run(
 			`
 			MATCH (seller: Person)
@@ -169,15 +169,15 @@ func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) erro
 			MATCH (seller: Person)
 			WHERE seller.username = $username
 			CREATE (listing: Listing 
-				{id: $listingID, title: $title, 
+				{title: $title, 
 				description: $description, images: $images,
 				price: $price, sym: $symbol, active: true
 				})
-			CREATE (seller)-[s:selling {timeOfUpload: $uploadTime}]->(listing)
+			CREATE (seller)-[s:Selling {timeOfUpload: $uploadTime}]->(listing)
+			RETURN id(listing)
 			`,
 			map[string]interface{}{
 				"username":    *username,
-				"listingID":   &listing.Id,
 				"title":       &listing.Title,
 				"description": &listing.Decription,
 				"images":      &listing.Images,
@@ -197,27 +197,96 @@ func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) erro
 		return nil, result.Err()
 	})
 
-	return err
+	if err != nil {
+		return -1, err
+	}
+
+	// Cast to string
+	if i, ok := value.(int64); ok {
+		return i, nil
+	}
+
+	return -1, nil
 }
 
-func (db NeoSmartHandler) BuyListing(buyerID, listingID *string, amount *int) error {
+func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, amount *int) error {
 
 	value, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+		// Has not been brought
 		result, err := transaction.Run(
 			`
-			MATCH (buyer: Person {id: $buyerID}), (listing: Listing {id: listingID})
-			apoc.do.when(true,
-				'CREATE (buyer)-[b:brought {timeOfPurchrase: $purchaseTime}]->(listing) SET listing.active = false RETURN true',
-				'RETURN false', 
-				{}
-			)
-			YIELD value
-			RETURN value
+			MATCH (buyer: Person), (listing: Listing)
+			WHERE id(listing) = $listingID
+			RETURN EXISTS ((buyer)-[:brought]->(listing))
 			`,
 			map[string]interface{}{
 				"listingID":    *listingID,
-				"buyerID":      *buyerID,
 				"purchaseTime": time.Now().Unix(),
+			})
+
+		// Check that transaction worked
+		if err != nil {
+			return nil, err
+		}
+
+		if !result.Next() {
+			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
+		}
+
+		hasBeenBrought, ok := result.Record().Values[0].(bool)
+
+		if !ok {
+			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
+		}
+
+		if hasBeenBrought {
+			return nil, fmt.Errorf("cannot buy an item that has already been brought")
+		}
+
+		// Is not the owner of the item
+		result, err = transaction.Run(
+			`
+			MATCH (listing: Listing)
+			WHERE id(listing) = $listingID
+			RETURN EXISTS ((: Person {username: $buyerUsername})-[:Selling]->(listing))
+			`,
+			map[string]interface{}{
+				"listingID":     *listingID,
+				"buyerUsername": *buyerUsername,
+				"purchaseTime":  time.Now().Unix(),
+			})
+
+		// Check that transaction worked
+		if err != nil {
+			return nil, err
+		}
+
+		if !result.Next() {
+			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
+		}
+
+		isOwner, ok := result.Record().Values[0].(bool)
+		fmt.Println("Owner:", isOwner)
+
+		if !ok {
+			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
+		}
+
+		if isOwner {
+			return nil, fmt.Errorf("cannot buy your own item")
+		}
+
+		result, err = transaction.Run(
+			`
+			MATCH (buyer: Person {buyerUsername: $buyerUsername}), (listing: Listing)
+			WHERE id(listing) = $listingID
+			CREATE (buyer)-[b:brought {timeOfPurchrase: $purchaseTime}]->(listing) 
+			SET listing.active = false
+			`,
+			map[string]interface{}{
+				"listingID":     *listingID,
+				"buyerUsername": *buyerUsername,
+				"purchaseTime":  time.Now().Unix(),
 			})
 
 		if err != nil {
@@ -235,3 +304,170 @@ func (db NeoSmartHandler) BuyListing(buyerID, listingID *string, amount *int) er
 
 	return err
 }
+
+func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *uint) ([]Messages, error) {
+	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+		// Has not been brought
+		result, err := transaction.Run(
+			`
+			MATCH (one: Person {username: $usernameOne})-[m:message]-(two: Person {username: $usernameTwo})
+			RETURN m.message, m.time, m.timeOfRead, (startNode(m) = one)
+			ORDER BY m.time DESC
+			LIMIT 10
+			`,
+			map[string]interface{}{
+				"usernameOne": *recieverUsername,
+				"usernameTwo": *senderUsername,
+			})
+
+		// Check that transaction worked
+		if err != nil {
+			return nil, err
+		}
+
+		//Get all the messages you have access to
+		messages := []Messages{}
+
+		for result.Next() {
+			fmt.Println(result.Record().Values...)
+			messages = append(messages, Messages{
+				Contents: result.Record().Values[0].(string),
+				Time:     result.Record().Values[1].(int64),
+				Read:     result.Record().Values[2].(int64),
+				Sender:   result.Record().Values[3].(bool),
+			})
+		}
+
+		return messages, nil
+
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Cast to []Messages
+	messages, ok := value.([]Messages)
+
+	if !ok {
+		return nil, fmt.Errorf("cannot cast to []Messages")
+	}
+
+	return messages, nil
+}
+
+func (db NeoSmartHandler) GetListing(listingID *int64) (Listing, error) {
+
+	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+
+		result, err := transaction.Run(
+			`
+			MATCH (p:Person)-[s:Selling]->(item: Listing)
+			WHERE id(item) = $listingID
+			RETURN item.title, item.description, item.images, item.price, item.sym, item.active, p.username
+			`,
+			map[string]interface{}{
+				"listingID": *listingID,
+			})
+
+		// Check that transaction worked
+		if err != nil {
+			return nil, err
+		}
+
+		// Listing my not exist, not an error though
+		if !result.Next() {
+			return Listing{}, nil
+		}
+
+		// Get listing info
+		images := strings.Fields(strings.Trim(strings.Trim(fmt.Sprint(result.Record().Values[2]), " [ "), "]"))
+
+		listing := Listing{
+			Id:         *listingID,
+			Title:      result.Record().Values[0].(string),
+			Decription: result.Record().Values[1].(string),
+			Images:     images,
+			Price:      result.Record().Values[3].(int64),
+			Sym:        result.Record().Values[4].(string),
+			Active:     result.Record().Values[5].(bool),
+			Owner:      result.Record().Values[6].(string),
+		}
+
+		return listing, nil
+
+	})
+
+	if err != nil {
+		return Listing{}, err
+	}
+
+	// Cast to Listing
+	if listing, ok := value.(Listing); ok {
+		return listing, nil
+	}
+
+	return Listing{}, fmt.Errorf("cannot cast to listing")
+
+}
+
+/*
+func (db NeoSmartHandler) GetProfile(listingID *string) (Listing, error) {
+
+	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+		id, err := strconv.Atoi(*listingID)
+
+		if err != nil {
+			return Listing{}, err
+		}
+
+		result, err := transaction.Run(
+			`
+			MATCH (item: Listing)
+			WHERE id(item) = $listingID
+			RETURN item.title, item.description, item.images, item.price, item.sym, item.active
+			`,
+			map[string]interface{}{
+				"listingID": id,
+			})
+
+		// Check that transaction worked
+		if err != nil {
+			return nil, err
+		}
+
+		// Listing my not exist, not an error though
+		if !result.Next() {
+			return Listing{}, nil
+		}
+
+		// Get listing info
+		images := strings.Fields(strings.Trim(strings.Trim(fmt.Sprint(result.Record().Values[2]), " [ "), "]"))
+
+		listing := Listing{
+			Id:         *listingID,
+			Title:      result.Record().Values[0].(string),
+			Decription: result.Record().Values[1].(string),
+			Images:     images,
+			Price:      result.Record().Values[3].(int64),
+			Sym:        result.Record().Values[4].(string),
+			Active:     result.Record().Values[5].(bool),
+		}
+
+		return listing, nil
+
+	})
+
+	if err != nil {
+		return Listing{}, err
+	}
+
+	// Cast to Listing
+	if listing, ok := value.(Listing); ok {
+		return listing, nil
+	}
+
+	return Listing{}, fmt.Errorf("cannot cast to listing")
+
+}
+*/
