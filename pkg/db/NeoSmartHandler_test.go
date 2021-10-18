@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-websocket/pkg/mocks"
+	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 
@@ -291,12 +292,75 @@ var _ = Describe("SmartDB", func() {
 			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
 		}
 
-		var time uint = 0
+		var time int64 = 0
 		messages, err := smartDB.GetMessages(&usernameTwo, &username, &time)
 
 		Expect(err).To(BeNil(), "Message should be able to be uploaded")
 		Expect(len(messages)).To(Equal(1), "Message should get a single message")
 		Expect(messages[0].Contents).To(Equal("The test message"), "Message should not be changed")
+		Expect(messages[0].Sender).To(Equal(false), "person who accessed to the message did not send it")
+
+	})
+
+	It("Message: Can get messages after a certain date", func() {
+		session := driver.NewSession(neo4j.SessionConfig{})
+		smartDB = NeoSmartHandler{
+			Session: session,
+		}
+
+		defer mocks.Close(session, "Session")
+
+		username := "some"
+		email := "some@example.com"
+		usernameTwo := "some-user"
+		emailTwo := "some-user@example.com"
+		initialPassword := "some-password"
+
+		err := registerUser(smartDB, &username, &email, &initialPassword)
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		err = registerUser(smartDB, &usernameTwo, &emailTwo, &initialPassword)
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		message := "Message One"
+
+		err = smartDB.CreateMessage(&username, &usernameTwo, &message)
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		//So messages don't have the same time
+		time.Sleep(time.Second)
+
+		message = "Message Two"
+		err = smartDB.CreateMessage(&username, &usernameTwo, &message)
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		var timeOfLastMessage int64 = 0
+		messages, err := smartDB.GetMessages(&usernameTwo, &username, &timeOfLastMessage)
+
+		Expect(err).To(BeNil(), "Message should be able to be uploaded")
+		Expect(len(messages)).To(Equal(2), "Should have two messages in the chat log")
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		messages, err = smartDB.GetMessages(&usernameTwo, &username, &messages[0].Time)
+
+		Expect(err).To(BeNil(), "Message should be able to be uploaded")
+		Expect(len(messages)).To(Equal(1), "Message should get a single message")
+		Expect(messages[0].Contents).To(Equal("Message Two"), "Message should not be changed")
 		Expect(messages[0].Sender).To(Equal(false), "person who accessed to the message did not send it")
 
 	})

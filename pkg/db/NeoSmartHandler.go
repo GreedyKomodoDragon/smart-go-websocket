@@ -211,7 +211,7 @@ func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) (int
 
 func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, amount *int) error {
 
-	value, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		// Has not been brought
 		result, err := transaction.Run(
 			`
@@ -266,7 +266,6 @@ func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, am
 		}
 
 		isOwner, ok := result.Record().Values[0].(bool)
-		fmt.Println("Owner:", isOwner)
 
 		if !ok {
 			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
@@ -300,25 +299,44 @@ func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, am
 		return nil, result.Err()
 	})
 
-	fmt.Println(value)
-
 	return err
 }
 
-func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *uint) ([]Messages, error) {
+// Should not be able to call if the thread that calls is not the same as recieverUsername
+func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *int64) ([]Messages, error) {
 	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
-		// Has not been brought
-		result, err := transaction.Run(
-			`
+		var result neo4j.Result
+		var err error
+
+		// check if there is a time point to start from
+		if *timeOfLastMessage > 0 {
+			result, err = transaction.Run(
+				`
 			MATCH (one: Person {username: $usernameOne})-[m:message]-(two: Person {username: $usernameTwo})
+			WHERE m.time > $time
 			RETURN m.message, m.time, m.timeOfRead, (startNode(m) = one)
-			ORDER BY m.time DESC
+			ORDER BY m.time
 			LIMIT 10
 			`,
-			map[string]interface{}{
-				"usernameOne": *recieverUsername,
-				"usernameTwo": *senderUsername,
-			})
+				map[string]interface{}{
+					"usernameOne": *recieverUsername,
+					"usernameTwo": *senderUsername,
+					"time":        *timeOfLastMessage,
+				})
+
+		} else {
+			result, err = transaction.Run(
+				`
+			MATCH (one: Person {username: $usernameOne})-[m:message]-(two: Person {username: $usernameTwo})
+			RETURN m.message, m.time, m.timeOfRead, (startNode(m) = one)
+			ORDER BY m.time
+			LIMIT 10
+			`,
+				map[string]interface{}{
+					"usernameOne": *recieverUsername,
+					"usernameTwo": *senderUsername,
+				})
+		}
 
 		// Check that transaction worked
 		if err != nil {
@@ -329,7 +347,6 @@ func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, 
 		messages := []Messages{}
 
 		for result.Next() {
-			fmt.Println(result.Record().Values...)
 			messages = append(messages, Messages{
 				Contents: result.Record().Values[0].(string),
 				Time:     result.Record().Values[1].(int64),
