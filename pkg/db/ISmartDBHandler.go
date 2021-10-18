@@ -3,6 +3,7 @@ package db
 type ISmartDBReader interface {
 	GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *int64) ([]Messages, error)
 	GetListing(listingID *int64) (Listing, error)
+	CheckLogin(username, password *string) (bool, error)
 	//GetProfile(profileUsername *string) (string, error)
 	//GetUnreadNotifications(profileID *string) (string, error)
 }

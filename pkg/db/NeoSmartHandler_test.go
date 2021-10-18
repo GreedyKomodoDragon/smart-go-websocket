@@ -154,6 +154,69 @@ var _ = Describe("SmartDB", func() {
 		Expect(err).To(BeNil(), "Transaction should successfully run")
 	})
 
+	It("Check Login: Same login, same password", func() {
+		username := "some"
+		email := "some@example.com"
+		initialPassword := "some-password"
+
+		session := driver.NewSession(neo4j.SessionConfig{})
+		smartDB = NeoSmartHandler{
+			Session: session,
+		}
+
+		defer mocks.Close(session, "Session")
+
+		err := smartDB.CreateProfile(&username, &email, &initialPassword)
+
+		Expect(err).To(BeNil(), "Transaction should successfully run")
+
+		matched, err := smartDB.CheckLogin(&username, &initialPassword)
+
+		Expect(err).To(BeNil(), "Transaction should successfully run")
+		Expect(matched).To(Equal(true), "TPasswords should match")
+	})
+
+	It("Check Login: known login, different password", func() {
+		username := "some"
+		email := "some@example.com"
+		initialPassword := "some-password"
+
+		session := driver.NewSession(neo4j.SessionConfig{})
+		smartDB = NeoSmartHandler{
+			Session: session,
+		}
+
+		defer mocks.Close(session, "Session")
+
+		newPassword := "djnhalkdasd"
+
+		err := smartDB.CreateProfile(&username, &email, &initialPassword)
+
+		Expect(err).To(BeNil(), "Transaction should successfully run")
+
+		matched, err := smartDB.CheckLogin(&username, &newPassword)
+
+		Expect(err).To(BeNil(), "Transaction should successfully run")
+		Expect(matched).To(Equal(false), "Passwords should not match")
+	})
+
+	It("Check Login: unknown login, different password", func() {
+		username := "some"
+		initialPassword := "some-password"
+
+		session := driver.NewSession(neo4j.SessionConfig{})
+		smartDB = NeoSmartHandler{
+			Session: session,
+		}
+
+		defer mocks.Close(session, "Session")
+
+		matched, err := smartDB.CheckLogin(&username, &initialPassword)
+
+		Expect(err).NotTo(BeNil(), "Transaction should not successfully run")
+		Expect(matched).To(Equal(false), "Passwords should not match")
+	})
+
 	It("Upload Listing: Registered Account", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		smartDB = NeoSmartHandler{

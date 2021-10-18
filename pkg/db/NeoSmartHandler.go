@@ -428,63 +428,50 @@ func (db NeoSmartHandler) GetListing(listingID *int64) (Listing, error) {
 
 }
 
-/*
-func (db NeoSmartHandler) GetProfile(listingID *string) (Listing, error) {
+func (db NeoSmartHandler) CheckLogin(username, password *string) (bool, error) {
 
 	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
-		id, err := strconv.Atoi(*listingID)
 
-		if err != nil {
-			return Listing{}, err
-		}
-
+		// Get Salt and Password for someone with the same username
 		result, err := transaction.Run(
 			`
-			MATCH (item: Listing)
-			WHERE id(item) = $listingID
-			RETURN item.title, item.description, item.images, item.price, item.sym, item.active
+			MATCH (n:Person {username: $username})
+			WHERE n.username = $username 
+			RETURN n.salt, n.password
 			`,
 			map[string]interface{}{
-				"listingID": id,
+				"username": *username,
 			})
 
 		// Check that transaction worked
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 
-		// Listing my not exist, not an error though
 		if !result.Next() {
-			return Listing{}, nil
+			return false, fmt.Errorf("unexpected error: neo4j account could not be found")
 		}
 
-		// Get listing info
-		images := strings.Fields(strings.Trim(strings.Trim(fmt.Sprint(result.Record().Values[2]), " [ "), "]"))
+		salt, _ := result.Record().Values[0].(string)
+		passwordDB, _ := result.Record().Values[1].(string)
 
-		listing := Listing{
-			Id:         *listingID,
-			Title:      result.Record().Values[0].(string),
-			Decription: result.Record().Values[1].(string),
-			Images:     images,
-			Price:      result.Record().Values[3].(int64),
-			Sym:        result.Record().Values[4].(string),
-			Active:     result.Record().Values[5].(bool),
+		match, err := cryptograph.ComparePassword(password, &passwordDB, &salt)
+
+		if err != nil {
+			return false, err
 		}
 
-		return listing, nil
-
+		return match, nil
 	})
 
+	// Fails if it does not work
 	if err != nil {
-		return Listing{}, err
+		return false, err
 	}
 
-	// Cast to Listing
-	if listing, ok := value.(Listing); ok {
-		return listing, nil
+	if match, ok := value.(bool); ok {
+		return match, nil
 	}
 
-	return Listing{}, fmt.Errorf("cannot cast to listing")
-
+	return false, fmt.Errorf("could not case to bool")
 }
-*/
