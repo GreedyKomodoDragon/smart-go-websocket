@@ -29,6 +29,7 @@ var _ = Describe("SmartDB", func() {
 		driver, _ = neo4j.NewDriver(address, neo4j.BasicAuth(username, password, ""))
 
 		session := driver.NewSession(neo4j.SessionConfig{})
+		defer mocks.Close(session, "Session")
 
 		session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 			// Has not been brought
@@ -468,7 +469,7 @@ var _ = Describe("SmartDB", func() {
 		id, err := smartDB.UploadListing(&username, &listing)
 		Expect(err).To(BeNil(), "Should be able to upload listing")
 
-		amount := 50
+		var amount int64 = 50 //int64 to remove any int32 or int64 uncertainty for different systems
 		err = smartDB.BuyListing(&usernameTwo, &id, &amount)
 
 		Expect(err).To(BeNil(), "Should be able to buy listing")
@@ -506,7 +507,7 @@ var _ = Describe("SmartDB", func() {
 		id, err := smartDB.UploadListing(&username, &listing)
 		Expect(err).To(BeNil(), "Should be able to upload listing")
 
-		amount := 50
+		var amount int64 = 50
 		err = smartDB.BuyListing(&username, &id, &amount)
 
 		Expect(err).NotTo(BeNil(), "Should not be able to buy listing")
@@ -543,7 +544,7 @@ var _ = Describe("SmartDB", func() {
 		id, err := smartDB.UploadListing(&username, &listing)
 		Expect(err).To(BeNil(), "Should be able to upload listing")
 
-		amount := 50
+		var amount int64 = 50
 		err = smartDB.BuyListing(&username, &id, &amount)
 
 		Expect(err).NotTo(BeNil(), "Should not be able to buy listing")

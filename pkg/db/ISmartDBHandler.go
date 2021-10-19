@@ -13,7 +13,7 @@ type ISmartDBWriter interface {
 	// Writer Methods
 	CreateMessage(senderUsername, receiverUsername, message *string) error
 	UploadListing(username *string, listing *Listing) (int64, error)
-	BuyListing(buyerID *string, listingID *int64, amount *int) error
+	BuyListing(buyerID *string, listingID *int64, amount *int64) error
 	CreateProfile(username, email, password *string) error
 }
 
