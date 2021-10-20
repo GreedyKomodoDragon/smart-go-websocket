@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("SmartDB", func() {
+var _ = Describe("NeoDB", func() {
 
 	const username = "neo4j"
 	const password = "s3cr3t"
@@ -524,10 +524,18 @@ var _ = Describe("SmartDB", func() {
 
 		username := "some"
 		email := "some@example.com"
+		usernameAnother := "another"
+		emailAnother := "another@example.com"
 
 		initialPassword := "some-password"
 
 		err := registerUser(smartDB, &username, &email, &initialPassword)
+
+		if err != nil {
+			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
+		}
+
+		err = registerUser(smartDB, &usernameAnother, &emailAnother, &initialPassword)
 
 		if err != nil {
 			Panic().NegatedFailureMessage("This should not have happened (check previous tests)")
@@ -545,9 +553,14 @@ var _ = Describe("SmartDB", func() {
 		Expect(err).To(BeNil(), "Should be able to upload listing")
 
 		var amount int64 = 50
-		err = smartDB.BuyListing(&username, &id, &amount)
+		err = smartDB.BuyListing(&usernameAnother, &id, &amount)
 
-		Expect(err).NotTo(BeNil(), "Should not be able to buy listing")
+		Expect(err).To(BeNil(), "Should be able to buy the first time")
+
+		fmt.Println(id, "is ID of item attempted to be brought twice")
+		err = smartDB.BuyListing(&usernameAnother, &id, &amount)
+
+		Expect(err).NotTo(BeNil(), "Should be able to buy the second time")
 	})
 
 })

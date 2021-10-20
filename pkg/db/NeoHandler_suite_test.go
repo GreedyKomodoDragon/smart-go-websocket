@@ -9,5 +9,5 @@ import (
 
 func TestSmartHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "SmartDB Suite")
+	RunSpecs(t, "NeoDB Suite")
 }

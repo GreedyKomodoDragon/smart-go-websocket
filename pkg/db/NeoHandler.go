@@ -209,19 +209,18 @@ func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) (int
 	return -1, nil
 }
 
-func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, amount *int) error {
+func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, amount *int64) error {
 
 	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
-		// Has not been brought
+		// Has not been brought or no longer for sale
 		result, err := transaction.Run(
 			`
-			MATCH (buyer: Person), (listing: Listing)
-			WHERE id(listing) = $listingID
-			RETURN EXISTS ((buyer)-[:brought]->(listing))
+			MATCH (listing: Listing)
+			WHERE id(listing) = $listingID AND listing.active = false
+			RETURN COUNT(listing)
 			`,
 			map[string]interface{}{
-				"listingID":    *listingID,
-				"purchaseTime": time.Now().Unix(),
+				"listingID": *listingID,
 			})
 
 		// Check that transaction worked
@@ -233,13 +232,13 @@ func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, am
 			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
 		}
 
-		hasBeenBrought, ok := result.Record().Values[0].(bool)
+		count, ok := result.Record().Values[0].(int64)
 
 		if !ok {
 			return nil, fmt.Errorf("unexpected error: neo4j relationship could not be checked")
 		}
 
-		if hasBeenBrought {
+		if count > 0 {
 			return nil, fmt.Errorf("cannot buy an item that has already been brought")
 		}
 
@@ -277,7 +276,7 @@ func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, am
 
 		result, err = transaction.Run(
 			`
-			MATCH (buyer: Person {buyerUsername: $buyerUsername}), (listing: Listing)
+			MATCH (buyer: Person {username: $buyerUsername}), (listing: Listing)
 			WHERE id(listing) = $listingID
 			CREATE (buyer)-[b:brought {timeOfPurchrase: $purchaseTime}]->(listing) 
 			SET listing.active = false
@@ -398,7 +397,7 @@ func (db NeoSmartHandler) GetListing(listingID *int64) (Listing, error) {
 		}
 
 		// Get listing info
-		images := strings.Fields(strings.Trim(strings.Trim(fmt.Sprint(result.Record().Values[2]), " [ "), "]"))
+		images := strings.Fields(strings.Trim(fmt.Sprint(result.Record().Values[2]), "[ ]"))
 
 		listing := Listing{
 			Id:         *listingID,
