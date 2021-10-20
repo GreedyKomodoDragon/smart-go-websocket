@@ -3,7 +3,6 @@ package cryptograph
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -50,8 +49,6 @@ func ComparePassword(passwordOne, passwordHashDB, salt *string) (bool, error) {
 
 	// Using recieved salt, hash the password
 	hashedAttempt, _ := HashPassword(passwordOne, &saltBytes)
-
-	fmt.Println(hashedAttempt, *passwordHashDB)
 
 	return hashedAttempt == *passwordHashDB, nil
 }
