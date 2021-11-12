@@ -1,8 +1,8 @@
-package websocket
+package ws
 
 import "go-websocket/pkg/db"
 
-type webDataBridge interface {
+type WebDataProxy interface {
 	// Socket methods
 	ConnectUsernameToID(username *string, id string) error
 	IsLoggedIn(id string) bool
@@ -16,4 +16,5 @@ type webDataBridge interface {
 	UploadListing(socketID string, listing *db.Listing) error
 	BuyListing(socketID string, listingID *int64, amount *int64) error
 	CreateProfile(username, email, password *string) error
+	GetContacts(socketID string) ([]db.Contact, error)
 }

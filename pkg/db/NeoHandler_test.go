@@ -61,7 +61,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -78,7 +78,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -96,7 +96,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -117,7 +117,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -140,7 +140,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -161,7 +161,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -183,7 +183,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -206,7 +206,7 @@ var _ = Describe("NeoDB", func() {
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -220,7 +220,7 @@ var _ = Describe("NeoDB", func() {
 
 	It("Upload Listing: Registered Account", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -251,7 +251,7 @@ var _ = Describe("NeoDB", func() {
 
 	It("Uploaded Listing: Can retrieve", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -291,7 +291,7 @@ var _ = Describe("NeoDB", func() {
 
 	It("Messages: can create a message", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -324,7 +324,7 @@ var _ = Describe("NeoDB", func() {
 
 	It("Messages: can get messages", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -368,7 +368,7 @@ var _ = Describe("NeoDB", func() {
 
 	It("Message: Can get messages after a certain date", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -432,7 +432,7 @@ var _ = Describe("NeoDB", func() {
 	It("Brought Item: Item Exists and Owned by someone else ", func() {
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -479,7 +479,7 @@ var _ = Describe("NeoDB", func() {
 	It("Brought Item: Item Exists and Owned by same ", func() {
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -516,7 +516,7 @@ var _ = Describe("NeoDB", func() {
 	It("Brought Item: Cannot buy something that has already been brought", func() {
 
 		session := driver.NewSession(neo4j.SessionConfig{})
-		smartDB = NeoSmartHandler{
+		smartDB = NeoHandler{
 			Session: session,
 		}
 
@@ -556,11 +556,44 @@ var _ = Describe("NeoDB", func() {
 		err = smartDB.BuyListing(&usernameAnother, &id, &amount)
 
 		Expect(err).To(BeNil(), "Should be able to buy the first time")
-
-		fmt.Println(id, "is ID of item attempted to be brought twice")
 		err = smartDB.BuyListing(&usernameAnother, &id, &amount)
 
 		Expect(err).NotTo(BeNil(), "Should be able to buy the second time")
+	})
+
+	It("Contacts: Can obtain contacts", func() {
+
+		session := driver.NewSession(neo4j.SessionConfig{})
+		smartDB = NeoHandler{
+			Session: session,
+		}
+
+		defer mocks.Close(session, "Session")
+
+		username := "some"
+		email := "some@example.com"
+		usernameAnother := "another"
+		emailAnother := "another@example.com"
+
+		initialPassword := "some-password"
+
+		_ = registerUser(smartDB, &username, &email, &initialPassword)
+		_ = registerUser(smartDB, &usernameAnother, &emailAnother, &initialPassword)
+
+		message := "This is an example"
+
+		contacts, err := smartDB.GetContacts(&username)
+		Expect(err).To(BeNil(), "Should be able to get contacts")
+		Expect(len(contacts)).To(Equal(0), "Should be no contacts")
+
+		err = smartDB.CreateMessage(&username, &usernameAnother, &message)
+		Expect(err).To(BeNil(), "Should send a message")
+
+		contacts, err = smartDB.GetContacts(&username)
+		Expect(err).To(BeNil(), "Should be able to get contacts")
+		Expect(len(contacts)).To(Equal(1), "Should only be one contact")
+		Expect(contacts[0].Username).To(Equal(usernameAnother), "Should only be one contact")
+
 	})
 
 })

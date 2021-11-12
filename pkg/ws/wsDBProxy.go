@@ -1,4 +1,4 @@
-package websocket
+package ws
 
 import (
 	"fmt"
@@ -6,56 +6,52 @@ import (
 )
 
 type WSDBProxy struct {
-	databaseManager *db.ISmartDBWriterReader
-	idToUsername    map[string]string
+	DatabaseManager *db.ISmartDBWriterReader
+	IdToUsername    map[string]string
 }
 
 func (ws WSDBProxy) ConnectUsernameToID(username *string, id string) error {
 
-	if ws.idToUsername == nil {
+	if ws.IdToUsername == nil {
 		return fmt.Errorf("map has not been intialised")
 	}
 
-	if ws.idToUsername[id] == "" {
-		ws.idToUsername[id] = *username
+	ws.IdToUsername[id] = ""
 
-		return nil
-	}
-
-	return fmt.Errorf("id already has a connecting username")
+	return nil
 
 }
 
 func (ws WSDBProxy) IsLoggedIn(id string) bool {
-	return ws.idToUsername != nil && ws.idToUsername[id] != ""
+	return ws.IdToUsername != nil && ws.IdToUsername[id] != ""
 }
 
 func (ws WSDBProxy) IsIDLinkedToUsername(id string, username *string) bool {
-	return ws.idToUsername != nil && ws.idToUsername[id] != *username
+	return ws.IdToUsername != nil && ws.IdToUsername[id] != *username
 }
 
 func (ws WSDBProxy) LogoutID(id string) error {
-	if ws.idToUsername == nil {
+	if ws.IdToUsername == nil {
 		return fmt.Errorf("map has not been intialised")
 	}
 
-	if ws.idToUsername[id] == "" {
+	if ws.IdToUsername[id] == "" {
 		return fmt.Errorf("id has no logged in value")
 	}
 
 	// set back to the default value
-	ws.idToUsername[id] = ""
+	ws.IdToUsername[id] = ""
 
 	return nil
 }
 
 func (ws WSDBProxy) CheckLogin(username, password *string) (bool, error) {
 
-	if ws.databaseManager == nil {
-		return false, fmt.Errorf("databaseManager has not been intialised")
+	if ws.DatabaseManager == nil {
+		return false, fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
-	validDetails, err := (*ws.databaseManager).CheckLogin(username, password)
+	validDetails, err := (*ws.DatabaseManager).CheckLogin(username, password)
 
 	if err != nil {
 		return false, err
@@ -66,15 +62,15 @@ func (ws WSDBProxy) CheckLogin(username, password *string) (bool, error) {
 
 func (ws WSDBProxy) GetMessages(socketID string, otherUsername *string, time *int64) ([]db.Messages, error) {
 
-	if ws.databaseManager == nil {
-		return nil, fmt.Errorf("databaseManager has not been intialised")
+	if ws.DatabaseManager == nil {
+		return nil, fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
 	if isLoggedIn := ws.IsLoggedIn(socketID); isLoggedIn {
 
-		username := ws.idToUsername[socketID]
+		username := ws.IdToUsername[socketID]
 
-		messages, err := (*ws.databaseManager).GetMessages(&username, otherUsername, time)
+		messages, err := (*ws.DatabaseManager).GetMessages(&username, otherUsername, time)
 
 		if err != nil {
 			return nil, err
@@ -89,17 +85,17 @@ func (ws WSDBProxy) GetMessages(socketID string, otherUsername *string, time *in
 
 func (ws WSDBProxy) CreateMessage(socketID string, receiverUsername, message *string) error {
 
-	if ws.databaseManager == nil {
-		return fmt.Errorf("databaseManager has not been intialised")
+	if ws.DatabaseManager == nil {
+		return fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
 	if isLoggedIn := ws.IsLoggedIn(socketID); isLoggedIn {
 
-		username := ws.idToUsername[socketID]
+		username := ws.IdToUsername[socketID]
 
 		// TODO: Add Validation to check message length and validation for attacks
 
-		err := (*ws.databaseManager).CreateMessage(&username, receiverUsername, message)
+		err := (*ws.DatabaseManager).CreateMessage(&username, receiverUsername, message)
 
 		if err != nil {
 			return err
@@ -114,17 +110,17 @@ func (ws WSDBProxy) CreateMessage(socketID string, receiverUsername, message *st
 
 func (ws WSDBProxy) UploadListing(socketID string, listing *db.Listing) error {
 
-	if ws.databaseManager == nil {
-		return fmt.Errorf("databaseManager has not been intialised")
+	if ws.DatabaseManager == nil {
+		return fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
 	if isLoggedIn := ws.IsLoggedIn(socketID); isLoggedIn {
 
-		username := ws.idToUsername[socketID]
+		username := ws.IdToUsername[socketID]
 
 		// TODO: Add Validation to listing before it is unloaded
 
-		_, err := (*ws.databaseManager).UploadListing(&username, listing)
+		_, err := (*ws.DatabaseManager).UploadListing(&username, listing)
 
 		if err != nil {
 			return err
@@ -139,17 +135,17 @@ func (ws WSDBProxy) UploadListing(socketID string, listing *db.Listing) error {
 
 func (ws WSDBProxy) BuyListing(socketID string, listingID *int64, amount *int64) error {
 
-	if ws.databaseManager == nil {
-		return fmt.Errorf("databaseManager has not been intialised")
+	if ws.DatabaseManager == nil {
+		return fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
 	if isLoggedIn := ws.IsLoggedIn(socketID); isLoggedIn {
 
-		username := ws.idToUsername[socketID]
+		username := ws.IdToUsername[socketID]
 
 		// TODO: Add Validation to check amount makes sense
 
-		err := (*ws.databaseManager).BuyListing(&username, listingID, amount)
+		err := (*ws.DatabaseManager).BuyListing(&username, listingID, amount)
 
 		if err != nil {
 			return err
@@ -164,17 +160,41 @@ func (ws WSDBProxy) BuyListing(socketID string, listingID *int64, amount *int64)
 
 func (ws WSDBProxy) CreateProfile(username, email, password *string) error {
 
-	if ws.databaseManager == nil {
-		return fmt.Errorf("databaseManager has not been intialised")
+	if ws.DatabaseManager == nil {
+		return fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
 	// TODO: Add Validation to check amount makes sense
 
-	err := (*ws.databaseManager).CreateProfile(username, email, password)
+	err := (*ws.DatabaseManager).CreateProfile(username, email, password)
 
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (ws WSDBProxy) GetContacts(socketID string) ([]db.Contact, error) {
+
+	if ws.DatabaseManager == nil {
+		return nil, fmt.Errorf("DatabaseManager has not been intialised")
+	}
+
+	if isLoggedIn := ws.IsLoggedIn(socketID); isLoggedIn {
+
+		username := ws.IdToUsername[socketID]
+
+		contacts, err := (*ws.DatabaseManager).GetContacts(&username)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return contacts, nil
+
+	}
+
+	return nil, fmt.Errorf("user is not logged in")
+
 }

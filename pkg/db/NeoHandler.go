@@ -9,11 +9,11 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
-type NeoSmartHandler struct {
+type NeoHandler struct {
 	Session neo4j.Session
 }
 
-func (db NeoSmartHandler) CreateProfile(username, email, password *string) error {
+func (db NeoHandler) CreateProfile(username, email, password *string) error {
 
 	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 
@@ -84,7 +84,14 @@ func (db NeoSmartHandler) CreateProfile(username, email, password *string) error
 
 		result, err = transaction.Run(
 			`
-			CREATE (n:Person {username: $username, email: $email, password: $password, salt: $salt})
+			CREATE (n:Person 
+				{
+					username: $username, 
+					email: $email,
+					password: $password,
+					salt: $salt,
+					avatar: $avatar
+				})
 			`,
 			map[string]interface{}{
 				"username":    *username,
@@ -92,6 +99,7 @@ func (db NeoSmartHandler) CreateProfile(username, email, password *string) error
 				"password":    passwordStr,
 				"salt":        saltStr,
 				"currentTime": time.Now().Unix(),
+				"avatar":      "baseImageURL",
 			})
 
 		if err != nil {
@@ -104,13 +112,13 @@ func (db NeoSmartHandler) CreateProfile(username, email, password *string) error
 	return err
 }
 
-func (db NeoSmartHandler) CreateMessage(senderUsername, receiverUsername, message *string) error {
+func (db NeoHandler) CreateMessage(senderUsername, receiverUsername, message *string) error {
 
 	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		result, err := transaction.Run(
 			`
 			MATCH (sender: Person {username: $usernameOne}), (reciever: Person {username: $usernameTwo})
-			CREATE (sender)-[r:message {message: $message, time: $currentTime, timeOfRead: 0}]->(reciever)
+			CREATE (sender)-[r:Message {message: $message, time: $currentTime, timeOfRead: 0}]->(reciever)
 			`,
 			map[string]interface{}{
 				"message":     *message,
@@ -133,7 +141,7 @@ func (db NeoSmartHandler) CreateMessage(senderUsername, receiverUsername, messag
 	return err
 }
 
-func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) (int64, error) {
+func (db NeoHandler) UploadListing(username *string, listing *Listing) (int64, error) {
 
 	value, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		result, err := transaction.Run(
@@ -209,7 +217,7 @@ func (db NeoSmartHandler) UploadListing(username *string, listing *Listing) (int
 	return -1, nil
 }
 
-func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, amount *int64) error {
+func (db NeoHandler) BuyListing(buyerUsername *string, listingID *int64, amount *int64) error {
 
 	_, err := db.Session.WriteTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		// Has not been brought or no longer for sale
@@ -302,7 +310,7 @@ func (db NeoSmartHandler) BuyListing(buyerUsername *string, listingID *int64, am
 }
 
 // Should not be able to call if the thread that calls is not the same as recieverUsername
-func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *int64) ([]Messages, error) {
+func (db NeoHandler) GetMessages(recieverUsername, senderUsername *string, timeOfLastMessage *int64) ([]Messages, error) {
 	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 		var result neo4j.Result
 		var err error
@@ -311,7 +319,7 @@ func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, 
 		if *timeOfLastMessage > 0 {
 			result, err = transaction.Run(
 				`
-			MATCH (one: Person {username: $usernameOne})-[m:message]-(two: Person {username: $usernameTwo})
+			MATCH (one: Person {username: $usernameOne})-[m:Message]-(two: Person {username: $usernameTwo})
 			WHERE m.time > $time
 			RETURN m.message, m.time, m.timeOfRead, (startNode(m) = one)
 			ORDER BY m.time
@@ -326,7 +334,7 @@ func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, 
 		} else {
 			result, err = transaction.Run(
 				`
-			MATCH (one: Person {username: $usernameOne})-[m:message]-(two: Person {username: $usernameTwo})
+			MATCH (one: Person {username: $usernameOne})-[m:Message]-(two: Person {username: $usernameTwo})
 			RETURN m.message, m.time, m.timeOfRead, (startNode(m) = one)
 			ORDER BY m.time
 			LIMIT 10
@@ -372,7 +380,7 @@ func (db NeoSmartHandler) GetMessages(recieverUsername, senderUsername *string, 
 	return messages, nil
 }
 
-func (db NeoSmartHandler) GetListing(listingID *int64) (Listing, error) {
+func (db NeoHandler) GetListing(listingID *int64) (Listing, error) {
 
 	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 
@@ -427,7 +435,7 @@ func (db NeoSmartHandler) GetListing(listingID *int64) (Listing, error) {
 
 }
 
-func (db NeoSmartHandler) CheckLogin(username, password *string) (bool, error) {
+func (db NeoHandler) CheckLogin(username, password *string) (bool, error) {
 
 	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 
@@ -473,4 +481,50 @@ func (db NeoSmartHandler) CheckLogin(username, password *string) (bool, error) {
 	}
 
 	return false, fmt.Errorf("could not case to bool")
+}
+
+func (db NeoHandler) GetContacts(username *string) ([]Contact, error) {
+
+	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+
+		// Get Salt and Password for someone with the same username
+		result, err := transaction.Run(
+			`
+			MATCH (n:Person {username: $username})-[:Message]-(m: Person)
+			RETURN distinct m.username, m.avatar
+			`,
+			map[string]interface{}{
+				"username": *username,
+			})
+
+		// Check that transaction worked
+		if err != nil {
+			return false, err
+		}
+
+		//Get all the messages you have access to
+		contacts := []Contact{}
+
+		for result.Next() {
+			contacts = append(contacts, Contact{
+				Username:  result.Record().Values[0].(string),
+				AvatarURL: result.Record().Values[1].(string),
+			})
+
+		}
+
+		return contacts, nil
+	})
+
+	// Fails if it does not work
+	if err != nil {
+		return []Contact{}, err
+	}
+
+	if contacts, ok := value.([]Contact); ok {
+		return contacts, nil
+	}
+
+	return []Contact{}, fmt.Errorf("could not cast to []Contact")
+
 }

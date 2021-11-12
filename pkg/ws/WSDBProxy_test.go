@@ -1,4 +1,4 @@
-package websocket
+package ws
 
 import (
 	"context"
@@ -39,7 +39,7 @@ var _ = Describe("WSDB", func() {
 
 	// Interfaces
 	var smartDB db.ISmartDBWriterReader
-	var bridge webDataBridge
+	var bridge WebDataProxy
 
 	BeforeEach(func() {
 		driver, _ = neo4j.NewDriver(address, neo4j.BasicAuth(username, password, ""))
@@ -65,7 +65,7 @@ var _ = Describe("WSDB", func() {
 
 		})
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
@@ -122,13 +122,13 @@ var _ = Describe("WSDB", func() {
 	It("SocketID to login: socket is not logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		isLoggedIn := bridge.IsLoggedIn("socketOne")
@@ -138,13 +138,13 @@ var _ = Describe("WSDB", func() {
 	It("SocketID to login: socket is logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
@@ -157,13 +157,13 @@ var _ = Describe("WSDB", func() {
 	It("Log out: ID should be disconnected to username", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
@@ -182,13 +182,13 @@ var _ = Describe("WSDB", func() {
 	It("Log out: Cannot log out if you are not logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		isLoggedIn := bridge.IsLoggedIn("socketOne")
@@ -202,13 +202,13 @@ var _ = Describe("WSDB", func() {
 	It("Messages: Cannot get messages if not logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		isLoggedIn := bridge.IsLoggedIn("socketOne")
@@ -222,13 +222,13 @@ var _ = Describe("WSDB", func() {
 	It("Messages: Can get messages if logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
@@ -247,13 +247,13 @@ var _ = Describe("WSDB", func() {
 	It("Messages: Can create messages if logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
@@ -277,13 +277,13 @@ var _ = Describe("WSDB", func() {
 	It("Messages: Cannot create messages if not logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		isLoggedIn := bridge.IsLoggedIn("socketOne")
@@ -299,13 +299,13 @@ var _ = Describe("WSDB", func() {
 	It("Listing: Can upload listing if logged in", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
@@ -331,13 +331,13 @@ var _ = Describe("WSDB", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		isLoggedIn := bridge.IsLoggedIn("socketOne")
@@ -360,13 +360,13 @@ var _ = Describe("WSDB", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		isLoggedIn := bridge.IsLoggedIn("socketOne")
@@ -384,13 +384,13 @@ var _ = Describe("WSDB", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
@@ -410,13 +410,13 @@ var _ = Describe("WSDB", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameTwo, "socketTwo")
@@ -436,13 +436,13 @@ var _ = Describe("WSDB", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		err := bridge.ConnectUsernameToID(&accountUsernameTwo, "socketTwo")
@@ -462,13 +462,13 @@ var _ = Describe("WSDB", func() {
 		session := driver.NewSession(neo4j.SessionConfig{})
 		defer mocks.Close(session, "Session")
 
-		smartDB = db.NeoSmartHandler{
+		smartDB = db.NeoHandler{
 			Session: session,
 		}
 
 		bridge = WSDBProxy{
-			databaseManager: &smartDB,
-			idToUsername:    make(map[string]string),
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
 		}
 
 		newEmail := "test@gmail.com"
@@ -477,6 +477,30 @@ var _ = Describe("WSDB", func() {
 
 		err := bridge.CreateProfile(&newUsername, &newEmail, &newPassword)
 		Expect(err).To(BeNil(), "Should be able to create an account")
+	})
+
+	It("Contacts: Can get contacts", func() {
+		session := driver.NewSession(neo4j.SessionConfig{})
+		defer mocks.Close(session, "Session")
+
+		smartDB = db.NeoHandler{
+			Session: session,
+		}
+
+		bridge = WSDBProxy{
+			DatabaseManager: &smartDB,
+			IdToUsername:    make(map[string]string),
+		}
+
+		err := bridge.ConnectUsernameToID(&accountUsernameOne, "socketOne")
+		Expect(err).To(BeNil(), "Socket should have a username")
+
+		contacts, err := bridge.GetContacts("socketOne")
+		fmt.Println(contacts)
+		Expect(err).To(BeNil(), "Should be able to access contracts")
+		Expect(contacts).NotTo(BeNil(), "Should have some value")
+		Expect(len(contacts)).To(Equal(1), "Only one another account has been created")
+		Expect(contacts[0].Username).To(Equal(accountUsernameTwo), "Only one another account has been created")
 	})
 
 })

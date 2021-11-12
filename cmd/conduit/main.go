@@ -1,12 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"go-websocket/pkg/db"
+	"go-websocket/pkg/ws"
+	"log"
+	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -29,12 +32,29 @@ func main() {
 	session := driver.NewSession(neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close()
 
-	var smartDB db.ISmartDBWriter = db.NeoSmartHandler{
+	var smartDB db.ISmartDBWriterReader = db.NeoHandler{
 		Session: session,
 	}
 
-	email := "jksdshdhksdlddsasdasd"
+	var dbProxy ws.WebDataProxy = ws.WSDBProxy{
+		DatabaseManager: &smartDB,
+		IdToUsername:    make(map[string]string),
+	}
 
-	err = smartDB.CreateProfile(&username, &email, &password)
-	fmt.Println(err)
+	mux := http.NewServeMux()
+	ws.AssignRoutes(&dbProxy, mux)
+
+	// provide default cors to the mux
+	handler := cors.Default().Handler(mux)
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+	})
+
+	// decorate existing handler with cors functionality set in c
+	handler = c.Handler(handler)
+
+	log.Println("Serving at localhost:5000...")
+	log.Fatal(http.ListenAndServe(":5000", handler))
 }
