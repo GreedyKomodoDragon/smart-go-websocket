@@ -8,5 +8,6 @@ type Registration struct {
 
 type RegistrationResult struct {
 	BaseMessage
-	Message string
+	Message  string
+	Username string
 }

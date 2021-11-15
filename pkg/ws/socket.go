@@ -106,11 +106,12 @@ func AssignRoutes(proxy *WebDataProxy, mux *http.ServeMux) error {
 				}
 
 				//TODO: Check that parameters are valid
+				fmt.Println(reg)
 
 				// Create the profile from parameters
-				err = (*proxy).CreateProfile(&reg.Username, &reg.Email, &reg.Password)
+				//err = (*proxy).CreateProfile(&reg.Username, &reg.Email, &reg.Password)
 
-				if err != nil {
+				/*if err != nil {
 					result := ws.RegistrationResult{
 						BaseMessage: ws.BaseMessage{
 							Command: "regResult",
@@ -126,6 +127,7 @@ func AssignRoutes(proxy *WebDataProxy, mux *http.ServeMux) error {
 
 					return
 				}
+				*/
 
 				expirationTime := time.Now().Add(24 * time.Hour)
 				token, _ := CreateToken("golangServer", expirationTime)
@@ -141,7 +143,8 @@ func AssignRoutes(proxy *WebDataProxy, mux *http.ServeMux) error {
 					BaseMessage: ws.BaseMessage{
 						Command: "regResult",
 					},
-					Message: "success",
+					Message:  "success",
+					Username: reg.Username,
 				}
 
 				returnJSON, _ := json.Marshal(result)
