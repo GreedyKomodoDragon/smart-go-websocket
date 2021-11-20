@@ -3,7 +3,7 @@ module go-websocket
 go 1.17
 
 require (
-	github.com/neo4j/neo4j-go-driver/v4 v4.3.3 // indirect
+	github.com/neo4j/neo4j-go-driver/v4 v4.4.0 // indirect
 	github.com/testcontainers/testcontainers-go v0.11.1
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/sys v0.0.0-20211013075003-97ac67df715c // indirect

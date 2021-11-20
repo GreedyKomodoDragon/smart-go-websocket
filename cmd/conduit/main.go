@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"go-websocket/pkg/db"
 	"go-websocket/pkg/ws"
 	"log"
@@ -9,10 +10,13 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
-	"github.com/rs/cors"
 )
 
+var addr = flag.String("addr", ":5000", "http service address")
+
 func main() {
+	flag.Parse()
+
 	err := godotenv.Load(".env")
 	if err != nil {
 		panic(err.Error())
@@ -41,20 +45,17 @@ func main() {
 		IdToUsername:    make(map[string]string),
 	}
 
-	mux := http.NewServeMux()
-	ws.AssignRoutes(&dbProxy, mux)
+	hub := ws.NewHub()
+	go hub.Run()
 
-	// provide default cors to the mux
-	handler := cors.Default().Handler(mux)
-
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowCredentials: true,
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWs(hub, w, r, &dbProxy)
 	})
 
-	// decorate existing handler with cors functionality set in c
-	handler = c.Handler(handler)
+	err = http.ListenAndServe(*addr, nil)
 
-	log.Println("Serving at localhost:5000...")
-	log.Fatal(http.ListenAndServe(":5000", handler))
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
+
 }

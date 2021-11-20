@@ -109,6 +109,8 @@ func (db NeoHandler) CreateProfile(username, email, password *string) error {
 		return nil, result.Err()
 	})
 
+	fmt.Println(err)
+
 	return err
 }
 

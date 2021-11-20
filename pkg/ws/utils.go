@@ -2,7 +2,7 @@ package ws
 
 import (
 	"fmt"
-	ws "go-websocket/pkg/ws/datastructs"
+	dt "go-websocket/pkg/ws/messages"
 	"net/http"
 	"os"
 	"time"
@@ -14,7 +14,7 @@ func CreateToken(username string, expirationTime time.Time) (string, error) {
 	var err error
 
 	//Creating Access Token
-	claims := &ws.Claims{
+	claims := &dt.Claims{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			// In JWT, the expiry time is expressed as unix milliseconds
@@ -35,7 +35,7 @@ func CreateToken(username string, expirationTime time.Time) (string, error) {
 func IsValidToken(tokenStr string) bool {
 
 	//Creating Access Token
-	claims := &ws.Claims{}
+	claims := &dt.Claims{}
 
 	// Parse the JWT string and store the result in `claims`.
 	_, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
@@ -55,7 +55,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, expirationTime time.Ti
 	}
 
 	tknStr := c.Value
-	claims := &ws.Claims{}
+	claims := &dt.Claims{}
 
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return os.Getenv("ACCESS_SECRET"), nil
