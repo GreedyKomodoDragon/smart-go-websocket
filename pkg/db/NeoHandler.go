@@ -34,17 +34,17 @@ func (db NeoHandler) CreateProfile(username, email, password *string) error {
 		}
 
 		if !result.Next() {
-			return nil, fmt.Errorf("unexpected error: neo4j account could not be counted")
+			return nil, fmt.Errorf("unexpected: neo4j account could not be counted")
 		}
 
 		countEmail, okEmail := result.Record().Values[0].(int64) // count email
 
 		if !okEmail {
-			return nil, fmt.Errorf("unexpected error: neo4j account could not be counted")
+			return nil, fmt.Errorf("unexpected: neo4j account could not be counted")
 		}
 
 		if countEmail != 0 {
-			return nil, fmt.Errorf("cannot create account with that email")
+			return nil, fmt.Errorf("email: cannot create account with that email")
 		}
 
 		// Check if account exists
@@ -65,17 +65,17 @@ func (db NeoHandler) CreateProfile(username, email, password *string) error {
 		}
 
 		if !result.Next() {
-			return nil, fmt.Errorf("unexpected error: neo4j account could not be counted")
+			return nil, fmt.Errorf("unexpected: neo4j account could not be counted")
 		}
 
 		countUsername, okUsername := result.Record().Values[0].(int64) // count username
 
 		if !okUsername {
-			return nil, fmt.Errorf("unexpected error: neo4j account could not be counted")
+			return nil, fmt.Errorf("unexpected: neo4j account could not be counted")
 		}
 
 		if countUsername != 0 {
-			return nil, fmt.Errorf("canot create account that username")
+			return nil, fmt.Errorf("username: cannot create account that username")
 		}
 
 		// Create the account if no account exists

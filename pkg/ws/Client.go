@@ -7,6 +7,7 @@ import (
 	ws "go-websocket/pkg/ws/messages"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -26,8 +27,13 @@ const (
 	maxMessageSize = 512
 
 	// Response codes
-	SUCCESS byte = 0
-	FAILED  byte = 1
+	SUCCESS          byte = 0
+	EMAIL_IN_USE     byte = 1
+	EMAIL_INVALID    byte = 2
+	PASSWORD_INVALID byte = 3
+	USERAME_IN_USE   byte = 4
+	USERAME_INVALID  byte = 5
+	UNKNOWN          byte = 6
 )
 
 var (
@@ -152,17 +158,15 @@ func (c *Client) readPump() {
 				return
 			}
 
-			//TODO: Check that parameters are valid
+			// Check email
+			if !IsValid(reg.Email) {
 
-			// Create the profile from parameters
-			err = (*c.DB).CreateProfile(&reg.Username, &reg.Email, &reg.Password)
-
-			if err != nil {
+				// sent invalid message back to the user
 				result := ws.RegistrationResult{
 					BaseMessage: ws.BaseMessage{
 						Command: "regResult",
 					},
-					ResponseCode: FAILED,
+					ResponseCode: EMAIL_INVALID,
 				}
 
 				returnJSON, _ := json.Marshal(result)
@@ -171,7 +175,65 @@ func (c *Client) readPump() {
 					return
 				}
 
-				return
+				// don't do any more checks -> email should have been checked on frontend
+				continue
+			}
+
+			// Check password
+			if !IsValidPassword(reg.Password) {
+				// sent invalid message back to the user
+				result := ws.RegistrationResult{
+					BaseMessage: ws.BaseMessage{
+						Command: "regResult",
+					},
+					ResponseCode: PASSWORD_INVALID,
+				}
+
+				returnJSON, _ := json.Marshal(result)
+
+				if err = c.Conn.WriteMessage(msgType, returnJSON); err != nil {
+					return
+				}
+
+				// don't do any more checks -> email should have been checked on frontend
+				continue
+			}
+
+			// Create the profile from parameters
+			err = (*c.DB).CreateProfile(&reg.Username, &reg.Email, &reg.Password)
+
+			if err != nil {
+				// by default it is unknown
+				var errorCode byte = UNKNOWN
+
+				// extract the error being referenced from message
+				errorType := strings.Split(err.Error(), ":")[0]
+
+				switch errorType {
+
+				case "email":
+					errorCode = EMAIL_IN_USE
+
+				case "username":
+					errorCode = USERAME_IN_USE
+
+				}
+
+				result := ws.RegistrationResult{
+					BaseMessage: ws.BaseMessage{
+						Command: "regResult",
+					},
+					ResponseCode: errorCode,
+				}
+
+				returnJSON, _ := json.Marshal(result)
+
+				if err = c.Conn.WriteMessage(msgType, returnJSON); err != nil {
+					return
+				}
+
+				continue
+
 			}
 
 			expirationTime := time.Now().Add(24 * time.Hour)

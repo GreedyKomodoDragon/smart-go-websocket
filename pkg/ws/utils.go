@@ -4,8 +4,10 @@ import (
 	"fmt"
 	dt "go-websocket/pkg/ws/messages"
 	"net/http"
+	"net/mail"
 	"os"
 	"time"
+	"unicode"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -96,4 +98,41 @@ func RefreshToken(w http.ResponseWriter, r *http.Request, expirationTime time.Ti
 
 	return nil
 
+}
+
+func IsValid(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
+
+func IsValidPassword(password string) bool {
+	// if length is invalid don't bother checking the rest
+	if len(password) < 10 {
+		return false
+	}
+
+	var (
+		hasUpper  = false
+		hasLower  = false
+		hasNumber = false
+	)
+
+	for _, char := range password {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+		}
+
+		// check if we have found all
+		if hasLower && hasUpper && hasNumber {
+			return true
+		}
+	}
+
+	// if we get here then we can't have found them all
+	return false
 }
