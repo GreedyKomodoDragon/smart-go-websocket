@@ -3,7 +3,6 @@ package ws
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	ws "go-websocket/pkg/ws/messages"
 	"log"
 	"net/http"
@@ -34,6 +33,7 @@ const (
 	USERAME_IN_USE   byte = 4
 	USERAME_INVALID  byte = 5
 	UNKNOWN          byte = 6
+	INVALID_LOGIN    byte = 7
 )
 
 var (
@@ -93,19 +93,54 @@ func (c *Client) readPump() {
 		switch string(message[:]) {
 
 		case "login":
-			fmt.Println("User attempted login")
-
 			_, jsonData, _ := c.Conn.ReadMessage()
 
 			var loginDetails ws.Login
 			json.Unmarshal(jsonData, &loginDetails)
 
-			// TODO: Check that format and JSON data is correct in terms of standards
-			// Password have has to sent way so no point checking db if not valid
-			// Same with emamil
+			// Check email
+			if !IsValid(loginDetails.Email) {
 
-			//TODO: Go to server and check login information
-			username := "dbConfirmedUsername2"
+				// sent invalid message back to the user
+				result := ws.RegistrationResult{
+					BaseMessage: ws.BaseMessage{
+						Command: "regResult",
+					},
+					ResponseCode: INVALID_LOGIN,
+				}
+
+				returnJSON, _ := json.Marshal(result)
+
+				if err = c.Conn.WriteMessage(msgType, returnJSON); err != nil {
+					return
+				}
+
+				// don't do any more checks -> email should have been checked on frontend
+				continue
+			}
+
+			// Check password
+			if !IsValidPassword(loginDetails.Password) {
+				// sent invalid message back to the user
+				result := ws.RegistrationResult{
+					BaseMessage: ws.BaseMessage{
+						Command: "regResult",
+					},
+					ResponseCode: INVALID_LOGIN,
+				}
+
+				returnJSON, _ := json.Marshal(result)
+
+				if err = c.Conn.WriteMessage(msgType, returnJSON); err != nil {
+					return
+				}
+
+				// don't do any more checks -> email should have been checked on frontend
+				continue
+			}
+
+			// Check the login
+			username, err := (*c.DB).CheckLogin(&loginDetails.Email, &loginDetails.Password)
 
 			expirationTime := time.Now().Add(24 * time.Hour)
 			token, _ := CreateToken(username, expirationTime)
@@ -132,7 +167,7 @@ func (c *Client) readPump() {
 			resultJson, err := json.Marshal(result)
 
 			if err != nil {
-				fmt.Println(err)
+				return
 			}
 
 			if err = c.Conn.WriteMessage(msgType, resultJson); err != nil {

@@ -171,10 +171,10 @@ var _ = Describe("NeoDB", func() {
 
 		Expect(err).To(BeNil(), "Transaction should successfully run")
 
-		matched, err := smartDB.CheckLogin(&username, &initialPassword)
+		returnedUsername, err := smartDB.CheckLogin(&email, &initialPassword)
 
 		Expect(err).To(BeNil(), "Transaction should successfully run")
-		Expect(matched).To(Equal(true), "TPasswords should match")
+		Expect(returnedUsername).To(Equal(username), "The username")
 	})
 
 	It("Check Login: known login, different password", func() {
@@ -195,14 +195,14 @@ var _ = Describe("NeoDB", func() {
 
 		Expect(err).To(BeNil(), "Transaction should successfully run")
 
-		matched, err := smartDB.CheckLogin(&username, &newPassword)
+		returnUsername, err := smartDB.CheckLogin(&email, &newPassword)
 
-		Expect(err).To(BeNil(), "Transaction should successfully run")
-		Expect(matched).To(Equal(false), "Passwords should not match")
+		Expect(err).ToNot(BeNil(), "Transaction should not successfully run")
+		Expect(returnUsername).To(Equal(""), "Username returned should be the same")
 	})
 
 	It("Check Login: unknown login, different password", func() {
-		username := "some"
+		email := "some@gmail.com"
 		initialPassword := "some-password"
 
 		session := driver.NewSession(neo4j.SessionConfig{})
@@ -212,10 +212,10 @@ var _ = Describe("NeoDB", func() {
 
 		defer mocks.Close(session, "Session")
 
-		matched, err := smartDB.CheckLogin(&username, &initialPassword)
+		username, err := smartDB.CheckLogin(&email, &initialPassword)
 
 		Expect(err).NotTo(BeNil(), "Transaction should not successfully run")
-		Expect(matched).To(Equal(false), "Passwords should not match")
+		Expect(username).To(Equal(""), "Username should be empty")
 	})
 
 	It("Upload Listing: Registered Account", func() {

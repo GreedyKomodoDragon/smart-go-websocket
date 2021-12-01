@@ -16,13 +16,16 @@ func (ws WSDBProxy) ConnectUsernameToID(username *string, id string) error {
 		return fmt.Errorf("map has not been intialised")
 	}
 
-	ws.IdToUsername[id] = ""
+	ws.IdToUsername[id] = *username
+
+	fmt.Println("id: ", id, " username", *username)
 
 	return nil
 
 }
 
 func (ws WSDBProxy) IsLoggedIn(id string) bool {
+	fmt.Println("id is: ", id)
 	return ws.IdToUsername != nil && ws.IdToUsername[id] != ""
 }
 
@@ -45,19 +48,19 @@ func (ws WSDBProxy) LogoutID(id string) error {
 	return nil
 }
 
-func (ws WSDBProxy) CheckLogin(username, password *string) (bool, error) {
+func (ws WSDBProxy) CheckLogin(email, password *string) (string, error) {
 
 	if ws.DatabaseManager == nil {
-		return false, fmt.Errorf("DatabaseManager has not been intialised")
+		return "", fmt.Errorf("DatabaseManager has not been intialised")
 	}
 
-	validDetails, err := (*ws.DatabaseManager).CheckLogin(username, password)
+	username, err := (*ws.DatabaseManager).CheckLogin(email, password)
 
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
-	return validDetails, nil
+	return username, nil
 }
 
 func (ws WSDBProxy) GetMessages(socketID string, otherUsername *string, time *int64) ([]db.Messages, error) {

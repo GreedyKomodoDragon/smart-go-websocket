@@ -496,7 +496,6 @@ var _ = Describe("WSDB", func() {
 		Expect(err).To(BeNil(), "Socket should have a username")
 
 		contacts, err := bridge.GetContacts("socketOne")
-		fmt.Println(contacts)
 		Expect(err).To(BeNil(), "Should be able to access contracts")
 		Expect(contacts).NotTo(BeNil(), "Should have some value")
 		Expect(len(contacts)).To(Equal(1), "Only one another account has been created")

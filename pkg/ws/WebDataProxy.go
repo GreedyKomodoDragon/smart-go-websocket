@@ -10,7 +10,7 @@ type WebDataProxy interface {
 	LogoutID(id string) error
 
 	// DB based methods
-	CheckLogin(username, password *string) (bool, error)
+	CheckLogin(email, password *string) (string, error)
 	GetMessages(socketID string, otherUsername *string, time *int64) ([]db.Messages, error)
 	CreateMessage(socketID string, receiverUsername, message *string) error
 	UploadListing(socketID string, listing *db.Listing) error

@@ -109,8 +109,6 @@ func (db NeoHandler) CreateProfile(username, email, password *string) error {
 		return nil, result.Err()
 	})
 
-	fmt.Println(err)
-
 	return err
 }
 
@@ -437,52 +435,51 @@ func (db NeoHandler) GetListing(listingID *int64) (Listing, error) {
 
 }
 
-func (db NeoHandler) CheckLogin(username, password *string) (bool, error) {
+func (db NeoHandler) CheckLogin(email, password *string) (string, error) {
 
-	value, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
+	username, err := db.Session.ReadTransaction(func(transaction neo4j.Transaction) (interface{}, error) {
 
 		// Get Salt and Password for someone with the same username
 		result, err := transaction.Run(
 			`
-			MATCH (n:Person {username: $username})
-			WHERE n.username = $username 
-			RETURN n.salt, n.password
+			MATCH (n:Person {email: $email})
+			RETURN n.username, n.salt, n.password
 			`,
 			map[string]interface{}{
-				"username": *username,
+				"email": *email,
 			})
 
 		// Check that transaction worked
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
 		if !result.Next() {
-			return false, fmt.Errorf("unexpected error: neo4j account could not be found")
+			return nil, fmt.Errorf("unexpected error: neo4j account could not be found")
 		}
 
-		salt, _ := result.Record().Values[0].(string)
-		passwordDB, _ := result.Record().Values[1].(string)
+		username, _ := result.Record().Values[0].(string)
+		salt, _ := result.Record().Values[1].(string)
+		passwordDB, _ := result.Record().Values[2].(string)
 
 		match, err := cryptograph.ComparePassword(password, &passwordDB, &salt)
 
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
-		return match, nil
+		if !match {
+			return nil, fmt.Errorf("password do not match")
+		}
+
+		return username, nil
 	})
 
-	// Fails if it does not work
-	if err != nil {
-		return false, err
+	if username == nil {
+		return "", err
 	}
 
-	if match, ok := value.(bool); ok {
-		return match, nil
-	}
-
-	return false, fmt.Errorf("could not case to bool")
+	return username.(string), err
 }
 
 func (db NeoHandler) GetContacts(username *string) ([]Contact, error) {
